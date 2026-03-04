@@ -822,4 +822,4 @@ if page == "NN Prediction":
 
         st.divider()
         st.write(f"CNN Accuracy: {cnn_metrics['Accuracy']:.2f}")
-        st.write(f"ML Accuracy: {ml_metrics['Accuracy']:.2f}")
+        # st.write(f"ML Accuracy: {ml_metrics['Accuracy']:.2f}")

@@ -590,11 +590,127 @@
 # joblib.dump(df, "models/food_full_data.pkl")
 
 # print("Model saved successfully!")
+
+# import pandas as pd
+# import joblib
+# from sklearn.model_selection import train_test_split
+# from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier
+# from sklearn.metrics import accuracy_score, classification_report
+
+# # ----------------------------
+# # โหลดข้อมูล
+# # ----------------------------
+# df = pd.read_csv("data/Food and Calories - Sheet1.csv")
+
+# # ----------------------------
+# # ทำความสะอาด Calories
+# # ----------------------------
+# df['Calories'] = df['Calories'].astype(str)
+# df['Calories'] = df['Calories'].str.replace('[^0-9.]', '', regex=True)
+# df['Calories'] = pd.to_numeric(df['Calories'], errors='coerce')
+
+# df = df.dropna()
+
+# # ----------------------------
+# # ดึง Grams จาก Serving
+# # ----------------------------
+# df['Serving'] = df['Serving'].astype(str)
+# df['Grams'] = df['Serving'].str.extract(r'(\d+\.?\d*)\s*g', expand=False)
+# df['Grams'] = pd.to_numeric(df['Grams'], errors='coerce')
+
+# df = df.dropna(subset=['Grams'])
+
+# # ----------------------------
+# # 🎯 สร้าง Calorie_Level
+# # ----------------------------
+# def calorie_category(cal):
+#     if cal < 150:
+#         return "Low"
+#     elif cal < 300:
+#         return "Medium"
+#     else:
+#         return "High"
+
+# df['Calorie_Level'] = df['Calories'].apply(calorie_category)
+
+# # ----------------------------
+# # 🎯 One-Hot Encoding Food
+# # ----------------------------
+# df_encoded = pd.get_dummies(df, columns=['Food'])
+
+# # ----------------------------
+# # Feature และ Target
+# # ----------------------------
+# X = df_encoded.drop(columns=['Calories', 'Calorie_Level', 'Serving'])
+# y = df_encoded['Calorie_Level']
+
+# # ----------------------------
+# # Train/Test Split
+# # ----------------------------
+# X_train, X_test, y_train, y_test = train_test_split(
+#     X, y, test_size=0.2, random_state=42
+# )
+
+# # ----------------------------
+# # โมเดล Ensemble
+# # ----------------------------
+# rf = RandomForestClassifier(
+#     n_estimators=300,
+#     random_state=42
+# )
+
+# gb = GradientBoostingClassifier(
+#     n_estimators=300,
+#     learning_rate=0.05,
+#     random_state=42
+# )
+
+# ensemble = VotingClassifier(
+#     estimators=[
+#         ('rf', rf),
+#         ('gb', gb)
+#     ],
+#     voting='soft'
+# )
+
+# # ----------------------------
+# # Train
+# # ----------------------------
+# ensemble.fit(X_train, y_train)
+
+# # ----------------------------
+# # Evaluate
+# # ----------------------------
+# y_pred = ensemble.predict(X_test)
+
+# acc = accuracy_score(y_test, y_pred)
+
+# print("Accuracy:", acc)
+# print("\nClassification Report:\n")
+# print(classification_report(y_test, y_pred))
+
+# # ----------------------------
+# # Save Model
+# # ----------------------------
+# ml_metrics = {
+#     "Accuracy": acc
+# }
+
+# joblib.dump(ensemble, "models/ensemble_model.pkl")
+# joblib.dump(ml_metrics, "models/ml_metrics.pkl")
+# joblib.dump(X.columns.tolist(), "models/feature_columns.pkl")
+# joblib.dump(df, "models/food_full_data.pkl")
+
+# print("Classification Model saved successfully!")
+
 import pandas as pd
 import joblib
+import os
+
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier
+from sklearn.ensemble import RandomForestClassifier, VotingClassifier
 from sklearn.metrics import accuracy_score, classification_report
+from xgboost import XGBClassifier
 
 # ----------------------------
 # โหลดข้อมูล
@@ -620,7 +736,12 @@ df['Grams'] = pd.to_numeric(df['Grams'], errors='coerce')
 df = df.dropna(subset=['Grams'])
 
 # ----------------------------
-# 🎯 สร้าง Calorie_Level
+# เพิ่ม Feature สำคัญ
+# ----------------------------
+df['Cal_per_gram'] = df['Calories'] / df['Grams']
+
+# ----------------------------
+# สร้าง Calorie_Level
 # ----------------------------
 def calorie_category(cal):
     if cal < 150:
@@ -633,7 +754,13 @@ def calorie_category(cal):
 df['Calorie_Level'] = df['Calories'].apply(calorie_category)
 
 # ----------------------------
-# 🎯 One-Hot Encoding Food
+# ตรวจสอบ class balance
+# ----------------------------
+print("Class Distribution:")
+print(df['Calorie_Level'].value_counts())
+
+# ----------------------------
+# One-Hot Encoding
 # ----------------------------
 df_encoded = pd.get_dummies(df, columns=['Food'])
 
@@ -644,30 +771,43 @@ X = df_encoded.drop(columns=['Calories', 'Calorie_Level', 'Serving'])
 y = df_encoded['Calorie_Level']
 
 # ----------------------------
-# Train/Test Split
+# Train/Test Split (สำคัญมาก)
 # ----------------------------
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
+    X, y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y
 )
 
 # ----------------------------
-# โมเดล Ensemble
+# โมเดล 1: Random Forest
 # ----------------------------
 rf = RandomForestClassifier(
-    n_estimators=300,
+    n_estimators=500,
+    max_depth=None,
+    min_samples_split=2,
     random_state=42
 )
 
-gb = GradientBoostingClassifier(
+# ----------------------------
+# โมเดล 2: XGBoost
+# ----------------------------
+xgb = XGBClassifier(
     n_estimators=300,
-    learning_rate=0.05,
-    random_state=42
+    learning_rate=0.1,
+    max_depth=4,
+    use_label_encoder=False,
+    eval_metric='mlogloss'
 )
 
+# ----------------------------
+# Ensemble Voting
+# ----------------------------
 ensemble = VotingClassifier(
     estimators=[
         ('rf', rf),
-        ('gb', gb)
+        ('xgb', xgb)
     ],
     voting='soft'
 )
@@ -684,15 +824,17 @@ y_pred = ensemble.predict(X_test)
 
 acc = accuracy_score(y_test, y_pred)
 
-print("Accuracy:", acc)
+print("\nAccuracy:", acc)
 print("\nClassification Report:\n")
 print(classification_report(y_test, y_pred))
 
 # ----------------------------
 # Save Model
 # ----------------------------
+os.makedirs("models", exist_ok=True)
+
 ml_metrics = {
-    "Accuracy": acc
+    "Accuracy": float(acc)
 }
 
 joblib.dump(ensemble, "models/ensemble_model.pkl")
@@ -700,4 +842,4 @@ joblib.dump(ml_metrics, "models/ml_metrics.pkl")
 joblib.dump(X.columns.tolist(), "models/feature_columns.pkl")
 joblib.dump(df, "models/food_full_data.pkl")
 
-print("Classification Model saved successfully!")
+print("\n🔥 Classification Model saved successfully!")
