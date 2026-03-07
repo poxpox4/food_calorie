@@ -2820,7 +2820,7 @@ ul[role="listbox"] li,
 # ===================== HERO =====================
 st.markdown("""
 <div class="hero-wrap">
-    <div class="hero-badge">✦ AI-Powered · Thai University Project</div>
+    <div class="hero-badge">✦ AI-Powered · Intelligent Systems Project</div>
     <div class="hero-title">Food Calorie <span>Intelligence</span></div>
     <div class="hero-sub">MACHINE LEARNING & NEURAL NETWORK · CALORIE PREDICTION SYSTEM</div>
 </div>

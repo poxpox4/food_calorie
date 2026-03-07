@@ -1,0 +1,5 @@
+ML model
+https://www.kaggle.com/datasets/syedjaferk/calories-in-food-items-per-100gm-ounce-serving?resource=download
+https://www.kaggle.com/datasets/vaishnavivenkatesan/food-and-their-calories?resource=download
+NN model
+https://www.kaggle.com/datasets/harishkumardatalab/food-image-classification-dataset
